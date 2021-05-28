@@ -1,3 +1,6 @@
+[![Go Report Card](https://goreportcard.com/badge/github.com/safe-waters/slog)](https://goreportcard.com/report/github.com/safe-waters/slog)
+[![Go Reference](https://pkg.go.dev/badge/github.com/safe-waters/slog.svg)](https://pkg.go.dev/github.com/safe-waters/slog)
+
 # What is this?
 `slog` is an opinionated, structured logger that wraps the standard library's
 `log` package.
