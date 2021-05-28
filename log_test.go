@@ -17,85 +17,85 @@ func (m *mockWriter) Write(p []byte) (n int, err error) {
 }
 
 func TestLog(t *testing.T) {
-	expectedMetadataKeys := []string{"level", "file", "time"}
+	expMetaKeys := []string{"level", "file", "time"}
 
 	tests := []struct {
-		name            string
-		level           level
-		fields          Fields
-		permanentFields Fields
-		msg             string
-		expectedFields  Fields
-		expectedKeys    []string
+		name    string
+		msg     string
+		lv      level
+		f       Fields
+		permF   Fields
+		expF    Fields
+		expKeys []string
 	}{
 		{
-			name:         "info",
-			level:        infoLevel,
-			expectedKeys: []string{"_metadata", "message"},
-			msg:          "hello",
+			name:    "info",
+			msg:     "hello",
+			lv:      infoLevel,
+			expKeys: []string{"_metadata", "message"},
 		},
 		{
-			name:           "info fields",
-			level:          infoLevel,
-			fields:         Fields{"test": "message"},
-			expectedFields: Fields{"test": "message"},
-			expectedKeys:   []string{"_metadata", "message", "fields"},
-			msg:            "hello",
+			name:    "info fields",
+			msg:     "hello",
+			lv:      infoLevel,
+			f:       Fields{"test": "message"},
+			expF:    Fields{"test": "message"},
+			expKeys: []string{"_metadata", "message", "fields"},
 		},
 		{
-			name:            "info permanent fields",
-			level:           infoLevel,
-			fields:          Fields{"test": "shadow", "local": "message"},
-			permanentFields: Fields{"test": "message"},
-			expectedFields:  Fields{"test": "message", "local": "message"},
-			expectedKeys:    []string{"_metadata", "message", "fields"},
-			msg:             "hello",
+			name:    "info permanent fields",
+			msg:     "hello",
+			lv:      infoLevel,
+			f:       Fields{"test": "shadow", "local": "message"},
+			permF:   Fields{"test": "message"},
+			expF:    Fields{"test": "message", "local": "message"},
+			expKeys: []string{"_metadata", "message", "fields"},
 		},
 		{
-			name:         "warn",
-			level:        warnLevel,
-			expectedKeys: []string{"_metadata", "message"},
-			msg:          "hello",
+			name:    "warn",
+			msg:     "hello",
+			lv:      warnLevel,
+			expKeys: []string{"_metadata", "message"},
 		},
 		{
-			name:           "warn fields",
-			level:          warnLevel,
-			fields:         Fields{"test": "message"},
-			expectedFields: Fields{"test": "message"},
-			expectedKeys:   []string{"_metadata", "message", "fields"},
-			msg:            "hello",
+			name:    "warn fields",
+			msg:     "hello",
+			lv:      warnLevel,
+			f:       Fields{"test": "message"},
+			expF:    Fields{"test": "message"},
+			expKeys: []string{"_metadata", "message", "fields"},
 		},
 		{
-			name:            "warn permanent fields",
-			level:           warnLevel,
-			fields:          Fields{"test": "shadow", "local": "message"},
-			permanentFields: Fields{"test": "message"},
-			expectedFields:  Fields{"test": "message", "local": "message"},
-			expectedKeys:    []string{"_metadata", "message", "fields"},
-			msg:             "hello",
+			name:    "warn permanent fields",
+			msg:     "hello",
+			lv:      warnLevel,
+			f:       Fields{"test": "shadow", "local": "message"},
+			permF:   Fields{"test": "message"},
+			expF:    Fields{"test": "message", "local": "message"},
+			expKeys: []string{"_metadata", "message", "fields"},
 		},
 		{
-			name:         "error",
-			level:        errorLevel,
-			expectedKeys: []string{"_metadata", "message"},
-			msg:          "hello",
+			name:    "error",
+			msg:     "hello",
+			lv:      errorLevel,
+			expKeys: []string{"_metadata", "message"},
 		},
 		{
-			name:           "error fields",
-			level:          errorLevel,
-			fields:         Fields{"test": "message"},
-			expectedFields: Fields{"test": "message"},
-			expectedKeys:   []string{"_metadata", "message", "fields"},
-			msg:            "hello",
+			name:    "error fields",
+			msg:     "hello",
+			lv:      errorLevel,
+			f:       Fields{"test": "message"},
+			expF:    Fields{"test": "message"},
+			expKeys: []string{"_metadata", "message", "fields"},
 		},
 		{
-			name:            "error permanent fields",
-			level:           errorLevel,
-			fields:          Fields{"test": "shadow", "local": "message"},
-			permanentFields: Fields{"test": "message"},
-			expectedFields:  Fields{"test": "message", "local": "message"},
-			expectedKeys:    []string{"_metadata", "message", "fields"},
-			msg:             "hello",
+			name:    "error permanent fields",
+			msg:     "hello",
+			lv:      errorLevel,
+			f:       Fields{"test": "shadow", "local": "message"},
+			permF:   Fields{"test": "message"},
+			expF:    Fields{"test": "message", "local": "message"},
+			expKeys: []string{"_metadata", "message", "fields"},
 		},
 	}
 
@@ -103,14 +103,14 @@ func TestLog(t *testing.T) {
 		var (
 			test = test
 			mw   = &mockWriter{}
-			l    = New(DefaultSkip, mw, test.permanentFields)
+			l    = New(DefaultSkip, mw, test.permF)
 			fn   func(msg string)
 		)
 
-		if test.fields == nil {
-			fn = getLogFunc(t, test.level, l, test.msg)
+		if test.f == nil {
+			fn = getLogFunc(t, test.lv, l, test.msg)
 		} else {
-			fn = getLogFuncf(t, test.level, test.fields, l, test.msg)
+			fn = getLogFuncf(t, test.lv, test.f, l, test.msg)
 		}
 
 		t.Run(test.name, func(t *testing.T) {
@@ -123,15 +123,15 @@ func TestLog(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if len(raw) != len(test.expectedKeys) {
+			if len(raw) != len(test.expKeys) {
 				t.Fatalf(
 					"expected '%d' keys, got '%d'",
-					len(test.expectedKeys),
+					len(test.expKeys),
 					len(raw),
 				)
 			}
 
-			for _, k := range test.expectedKeys {
+			for _, k := range test.expKeys {
 				if _, ok := raw[k]; !ok {
 					t.Fatalf(
 						"expected key '%s' but it did not exist",
@@ -145,7 +145,7 @@ func TestLog(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			for _, k := range expectedMetadataKeys {
+			for _, k := range expMetaKeys {
 				if e.Metadata[k] == "" {
 					t.Fatalf(
 						"expected key '%s' to have a value",
@@ -154,10 +154,10 @@ func TestLog(t *testing.T) {
 				}
 			}
 
-			if e.Metadata["level"] != string(test.level) {
+			if e.Metadata["level"] != string(test.lv) {
 				t.Fatalf(
 					"expected level '%s', got '%s'",
-					test.level,
+					test.lv,
 					e.Metadata["level"],
 				)
 			}
@@ -211,18 +211,18 @@ func TestLog(t *testing.T) {
 				)
 			}
 
-			if len(test.expectedFields) != len(e.Fields) {
+			if len(test.expF) != len(e.Fields) {
 				t.Fatalf(
 					"expected '%d' field(s), got '%d'",
-					len(test.expectedFields),
+					len(test.expF),
 					len(e.Fields),
 				)
 			}
 
-			for k := range test.expectedFields {
-				if test.expectedFields[k] != e.Fields[k] {
+			for k := range test.expF {
+				if test.expF[k] != e.Fields[k] {
 					t.Fatalf("expected field '%s', got '%s'",
-						test.expectedFields[k],
+						test.expF[k],
 						e.Fields[k],
 					)
 				}
@@ -235,9 +235,11 @@ func TestDefaultStdOut(t *testing.T) {
 	t.Parallel()
 
 	l := New(DefaultSkip, nil, nil)
-	concrete, ok := l.logger.Writer().(*os.File)
-	if !ok || concrete != os.Stdout {
-		t.Fatal("expected New's Writer to default to os.Stdout, but it did not")
+	w, ok := l.logger.Writer().(*os.File)
+	if !ok || w != os.Stdout {
+		t.Fatal(
+			"expected New's Writer to default to os.Stdout, but it did not",
+		)
 	}
 }
 
@@ -267,16 +269,16 @@ func TestUnknownStack(t *testing.T) {
 func TestDefaultLogger(t *testing.T) {
 	t.Parallel()
 
-	expect := func(mw *mockWriter, msg string, l level, f Fields) {
+	expect := func(mw *mockWriter, l level, f Fields) {
 		var e event
 		if err := json.Unmarshal(mw.byt, &e); err != nil {
 			t.Fatal(err)
 		}
 
-		if e.Message != msg {
-			t.Fatalf("expected message '%s', got '%s'",
-				e.Message,
-				msg,
+		if string(l) != e.Metadata["level"] {
+			t.Fatalf("expected level '%s', got '%s'",
+				l,
+				e.Metadata["level"],
 			)
 		}
 
@@ -286,15 +288,6 @@ func TestDefaultLogger(t *testing.T) {
 				len(f),
 				len(e.Fields),
 			)
-		}
-
-		for k := range f {
-			if f[k] != e.Fields[k] {
-				t.Fatalf("expected field '%s', got '%s'",
-					f[k],
-					e.Fields[k],
-				)
-			}
 		}
 	}
 
@@ -307,25 +300,30 @@ func TestDefaultLogger(t *testing.T) {
 	defaultLogger.logger.SetOutput(mw)
 
 	Info(msg)
-	expect(mw, msg, infoLevel, nil)
+	expect(mw, infoLevel, nil)
 
 	Infof(fields, msg)
-	expect(mw, msg, infoLevel, fields)
+	expect(mw, infoLevel, fields)
 
 	Warn(msg)
-	expect(mw, msg, warnLevel, nil)
+	expect(mw, warnLevel, nil)
 
 	Warnf(fields, msg)
-	expect(mw, msg, warnLevel, fields)
+	expect(mw, warnLevel, fields)
 
 	Error(msg)
-	expect(mw, msg, errorLevel, nil)
+	expect(mw, errorLevel, nil)
 
 	Errorf(fields, msg)
-	expect(mw, msg, errorLevel, fields)
+	expect(mw, errorLevel, fields)
 }
 
-func getLogFunc(t *testing.T, lv level, l *Logger, msg string) func(msg string) {
+func getLogFunc(
+	t *testing.T,
+	lv level,
+	l *Logger,
+	msg string,
+) func(msg string) {
 	t.Helper()
 
 	switch lv {
@@ -342,7 +340,13 @@ func getLogFunc(t *testing.T, lv level, l *Logger, msg string) func(msg string) 
 	return nil
 }
 
-func getLogFuncf(t *testing.T, lv level, f Fields, l *Logger, msg string) func(msg string) {
+func getLogFuncf(
+	t *testing.T,
+	lv level,
+	f Fields,
+	l *Logger,
+	msg string,
+) func(msg string) {
 	t.Helper()
 
 	var fn func(f Fields, msg string)
