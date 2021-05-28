@@ -17,6 +17,8 @@ func (m *mockWriter) Write(p []byte) (n int, err error) {
 }
 
 func TestLog(t *testing.T) {
+	t.Parallel()
+
 	expMetaKeys := []string{"level", "file", "time"}
 
 	tests := []struct {
