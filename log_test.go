@@ -108,9 +108,9 @@ func TestLog(t *testing.T) {
 		)
 
 		if test.f == nil {
-			fn = getLogFunc(t, test.lv, l, test.msg)
+			fn = getLogFunc(t, l, test.lv, test.msg)
 		} else {
-			fn = getLogFuncf(t, test.lv, test.f, l, test.msg)
+			fn = getLogFuncf(t, l, test.lv, test.f, test.msg)
 		}
 
 		t.Run(test.name, func(t *testing.T) {
@@ -269,15 +269,15 @@ func TestUnknownStack(t *testing.T) {
 func TestDefaultLogger(t *testing.T) {
 	t.Parallel()
 
-	expect := func(mw *mockWriter, l level, f Fields) {
+	expect := func(mw *mockWriter, lv level, f Fields) {
 		var e event
 		if err := json.Unmarshal(mw.byt, &e); err != nil {
 			t.Fatal(err)
 		}
 
-		if string(l) != e.Metadata["level"] {
+		if string(lv) != e.Metadata["level"] {
 			t.Fatalf("expected level '%s', got '%s'",
-				l,
+				lv,
 				e.Metadata["level"],
 			)
 		}
@@ -287,6 +287,16 @@ func TestDefaultLogger(t *testing.T) {
 				"expected '%d' field(s), got '%d'",
 				len(f),
 				len(e.Fields),
+			)
+		}
+
+		file := e.Metadata["file"]
+		expFileName := "log_test.go"
+		if !strings.HasPrefix(file, expFileName) {
+			t.Fatalf(
+				"expected file to contain '%s', got '%s'",
+				expFileName,
+				file,
 			)
 		}
 	}
@@ -320,8 +330,8 @@ func TestDefaultLogger(t *testing.T) {
 
 func getLogFunc(
 	t *testing.T,
-	lv level,
 	l *Logger,
+	lv level,
 	msg string,
 ) func(msg string) {
 	t.Helper()
@@ -342,9 +352,9 @@ func getLogFunc(
 
 func getLogFuncf(
 	t *testing.T,
+	l *Logger,
 	lv level,
 	f Fields,
-	l *Logger,
 	msg string,
 ) func(msg string) {
 	t.Helper()
