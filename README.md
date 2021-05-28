@@ -1,3 +1,4 @@
+[![ci](https://github.com/safe-waters/slog/actions/workflows/ci.yml/badge.svg)](https://github.com/safe-waters/slog/actions/workflows/ci.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/safe-waters/slog)](https://goreportcard.com/report/github.com/safe-waters/slog)
 [![Go Reference](https://pkg.go.dev/badge/github.com/safe-waters/slog.svg)](https://pkg.go.dev/github.com/safe-waters/slog)
 
