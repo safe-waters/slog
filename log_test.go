@@ -13,7 +13,7 @@ type mockWriter struct{ byt []byte }
 
 func (m *mockWriter) Write(p []byte) (n int, err error) {
 	m.byt = p
-	return len(m.byt), nil
+	return 0, nil
 }
 
 func TestLog(t *testing.T) {
@@ -30,6 +30,29 @@ func TestLog(t *testing.T) {
 		expF    Fields
 		expKeys []string
 	}{
+		{
+			name:    "trace",
+			msg:     "hello",
+			lv:      traceLevel,
+			expKeys: []string{"_metadata", "message"},
+		},
+		{
+			name:    "trace fields",
+			msg:     "hello",
+			lv:      traceLevel,
+			f:       Fields{"test": "message"},
+			expF:    Fields{"test": "message"},
+			expKeys: []string{"_metadata", "message", "fields"},
+		},
+		{
+			name:    "trace permanent fields",
+			msg:     "hello",
+			lv:      traceLevel,
+			f:       Fields{"test": "shadow", "local": "message"},
+			permF:   Fields{"test": "message"},
+			expF:    Fields{"test": "message", "local": "message"},
+			expKeys: []string{"_metadata", "message", "fields"},
+		},
 		{
 			name:    "info",
 			msg:     "hello",
@@ -105,7 +128,7 @@ func TestLog(t *testing.T) {
 		var (
 			test = test
 			mw   = &mockWriter{}
-			l    = New(DefaultSkip, mw, test.permF)
+			l    = New(DefaultCallDepth, mw, test.permF)
 			fn   func(msg string)
 		)
 
@@ -190,17 +213,13 @@ func TestLog(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			unixTimeInt, err := strconv.ParseInt(
-				e.Metadata["time"],
-				10,
-				64,
-			)
+			gotTime, err := time.Parse(time.RFC3339, e.Metadata["time"])
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			gotTime := time.Unix(0, unixTimeInt).Round(time.Minute)
-			expTime := time.Now().Round(time.Minute)
+			gotTime = gotTime.Round(time.Minute)
+			expTime := time.Now().UTC().Round(time.Minute)
 			if !expTime.Equal(gotTime) {
 				t.Fatalf("expected '%s' time, got '%s'", expTime, gotTime)
 			}
@@ -236,7 +255,7 @@ func TestLog(t *testing.T) {
 func TestDefaultStdOut(t *testing.T) {
 	t.Parallel()
 
-	l := New(DefaultSkip, nil, nil)
+	l := New(DefaultCallDepth, nil, nil)
 	w, ok := l.logger.Writer().(*os.File)
 	if !ok || w != os.Stdout {
 		t.Fatal(
@@ -311,6 +330,12 @@ func TestDefaultLogger(t *testing.T) {
 	mw := &mockWriter{}
 	defaultLogger.logger.SetOutput(mw)
 
+	Trace(msg)
+	expect(mw, traceLevel, nil)
+
+	Tracef(fields, msg)
+	expect(mw, traceLevel, fields)
+
 	Info(msg)
 	expect(mw, infoLevel, nil)
 
@@ -339,6 +364,8 @@ func getLogFunc(
 	t.Helper()
 
 	switch lv {
+	case "trace":
+		return l.Trace
 	case "info":
 		return l.Info
 	case "warn":
@@ -364,6 +391,8 @@ func getLogFuncf(
 	var fn func(f Fields, msg string)
 
 	switch lv {
+	case "trace":
+		fn = l.Tracef
 	case "info":
 		fn = l.Infof
 	case "warn":

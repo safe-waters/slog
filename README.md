@@ -3,15 +3,15 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/safe-waters/slog.svg)](https://pkg.go.dev/github.com/safe-waters/slog)
 
 # What is this?
-`slog` is an opinionated, structured logger that wraps the standard library's
+`slog` is a structured logger that wraps the standard library's
 `log` package.
 
 # Features
 * Log each message as JSON
 * Every log has metadata that includes:
-    * UTC time in unix nano seconds
+    * UTC time in nano seconds
     * File name and line number
-    * Level - info, warn, or error
+    * Level - trace, info, warn, or error
 * Logs can contain permanent key-value fields that log with every message
 * Logs can contain key-value fields that log for just one message
 * Defaults to stdout (but is configurable with any `io.Writer`)
@@ -24,15 +24,17 @@ package main
 import "github.com/safe-waters/slog"
 
 func main() {
+	slog.Trace("hello world")
 	slog.Info("hello world")
 	slog.Warn("hello world")
 	slog.Error("hello world")
 }
 
 // Output:
-// {"_metadata":{"file":"main.go:6","level":"info","time":"1622178871606977200"},"message":"hello world"}
-// {"_metadata":{"file":"main.go:7","level":"warn","time":"1622178871607224000"},"message":"hello world"}
-// {"_metadata":{"file":"main.go:8","level":"error","time":"1622178871607270900"},"message":"hello world"}
+// {"_metadata":{"file":"main.go:6","level":"trace","time":"2021-06-09T15:39:30.2649183Z"},"message":"hello world"}
+// {"_metadata":{"file":"main.go:7","level":"info","time":"2021-06-09T15:39:30.2650656Z"},"message":"hello world"}
+// {"_metadata":{"file":"main.go:8","level":"warn","time":"2021-06-09T15:39:30.265132Z"},"message":"hello world"}
+// {"_metadata":{"file":"main.go:9","level":"error","time":"2021-06-09T15:39:30.2652018Z"},"message":"hello world"}
 ```
 
 With fields:
@@ -42,15 +44,17 @@ package main
 import "github.com/safe-waters/slog"
 
 func main() {
+	slog.Tracef(slog.Fields{"ip": "10.0.0.1"}, "hello world")
 	slog.Infof(slog.Fields{"ip": "localhost"}, "hello world")
 	slog.Warnf(slog.Fields{"ip": "0.0.0.0"}, "hello world")
 	slog.Errorf(slog.Fields{"ip": "10.0.0.0"}, "hello world")
 }
 
 // Output:
-// {"_metadata":{"file":"main.go:6","level":"info","time":"1622178920099374600"},"fields":{"ip":"localhost"},"message":"hello world"}
-// {"_metadata":{"file":"main.go:7","level":"warn","time":"1622178920099502700"},"fields":{"ip":"0.0.0.0"},"message":"hello world"}
-// {"_metadata":{"file":"main.go:8","level":"error","time":"1622178920099581500"},"fields":{"ip":"10.0.0.0"},"message":"hello world"}
+// {"_metadata":{"file":"main.go:6","level":"trace","time":"2021-06-09T15:41:20.9950695Z"},"fields":{"ip":"10.0.0.1"},"message":"hello world"}
+// {"_metadata":{"file":"main.go:7","level":"info","time":"2021-06-09T15:41:20.9951949Z"},"fields":{"ip":"localhost"},"message":"hello world"}
+// {"_metadata":{"file":"main.go:8","level":"warn","time":"2021-06-09T15:41:20.9952392Z"},"fields":{"ip":"0.0.0.0"},"message":"hello world"}
+// {"_metadata":{"file":"main.go:9","level":"error","time":"2021-06-09T15:41:20.9953044Z"},"fields":{"ip":"10.0.0.0"},"message":"hello world"}
 ```
 
 With permanent fields:
@@ -64,11 +68,7 @@ import (
 )
 
 func main() {
-	// See documentation for DefaultSkip. It determines the stack
-	// frame for reporting the file name and line number. If you wrap
-	// slog in your own logger, you will likely initialize the
-	// logger with slog.DefaultSkip+1.
-	l := slog.New(slog.DefaultSkip, os.Stdout, slog.Fields{"ip": "localhost"})
+	l := slog.New(slog.DefaultCallDepth, os.Stdout, slog.Fields{"ip": "localhost"})
 
 	l.Info("hello world")
 
@@ -77,6 +77,6 @@ func main() {
 }
 
 // Output:
-// {"_metadata":{"file":"main.go:16","level":"info","time":"1622178968714522200"},"fields":{"ip":"localhost"},"message":"hello world"}
-// {"_metadata":{"file":"main.go:19","level":"warn","time":"1622178968714619900"},"fields":{"ip":"localhost","local":"unaffected"},"message":"hello world"}
+// {"_metadata":{"file":"main.go:12","level":"info","time":"2021-06-09T15:43:53.5588804Z"},"fields":{"ip":"localhost"},"message":"hello world"}
+// {"_metadata":{"file":"main.go:15","level":"warn","time":"2021-06-09T15:43:53.5590044Z"},"fields":{"ip":"localhost","local":"unaffected"},"message":"hello world"}
 ```

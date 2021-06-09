@@ -1,3 +1,5 @@
+// Package slog provides a structured logger that wraps the standard library's
+// log package.
 package slog
 
 import (
@@ -11,7 +13,7 @@ import (
 	"time"
 )
 
-// DefaultSkip is the number of stack frames to ascend in
+// DefaultCallDepth is the number of stack frames to ascend in
 // a goroutine and is used to determine the file name
 // and line number to log.
 //
@@ -20,21 +22,21 @@ import (
 // Logger was used.
 //
 // If you would like to create a wrapper around this package,
-// you will need to create the Logger with DefaultSkip+1
+// you will need to create the Logger with DefaultCallDepth+1
 // when calling New.
 //
 // For more information, see the documentation for the standard
 // library's runtime.Caller function.
-const DefaultSkip = 3
+const DefaultCallDepth = 3
 
 // Logger is a wrapper around the standard library's log.Logger.
 // It produces structured log messages as JSON key-value string pairs
-// and has three levels, "info", "warn", and "error".
+// and has four levels, "trace", "info", "warn", and "error".
 //
 // It always logs the level, file name, line number, and timestamp
 // in unix nano seconds (UTC) as metadata.
 type Logger struct {
-	skip            int
+	callDepth       int
 	logger          *log.Logger
 	permanentFields Fields
 }
@@ -43,7 +45,7 @@ type Logger struct {
 type Fields map[string]string
 
 // New returns a Logger that determines the file name and line number
-// from skip, where to write out, and fields to permanently set that will
+// from callDepth, where to write out, and fields to permanently set that will
 // appear with every log.
 //
 // If out is nil, it will default to os.Stdout.
@@ -51,13 +53,13 @@ type Fields map[string]string
 // If permanentFields contains a key that is equal to
 // a key in another method such as Infof, the permanentFields
 // value will take priority.
-func New(skip int, out io.Writer, permanentFields Fields) *Logger {
+func New(callDepth int, out io.Writer, permanentFields Fields) *Logger {
 	if out == nil {
 		out = os.Stdout
 	}
 
 	return &Logger{
-		skip:            skip,
+		callDepth:       callDepth,
 		logger:          log.New(out, "", 0),
 		permanentFields: permanentFields,
 	}
@@ -66,12 +68,23 @@ func New(skip int, out io.Writer, permanentFields Fields) *Logger {
 type level string
 
 const (
+	traceLevel level = "trace"
 	infoLevel  level = "info"
 	warnLevel  level = "warn"
 	errorLevel level = "error"
 )
 
-var defaultLogger = New(DefaultSkip+1, os.Stdout, nil)
+var defaultLogger = New(DefaultCallDepth+1, os.Stdout, nil)
+
+// Trace calls the default Logger's Trace method.
+func Trace(msg string) {
+	defaultLogger.Trace(msg)
+}
+
+// Tracef calls the default Logger's Tracef method.
+func Tracef(f Fields, msg string) {
+	defaultLogger.Tracef(f, msg)
+}
 
 // Info calls the default Logger's Info method.
 func Info(msg string) {
@@ -101,6 +114,16 @@ func Error(msg string) {
 // Errorf calls the default Logger's Errorf method.
 func Errorf(f Fields, msg string) {
 	defaultLogger.Errorf(f, msg)
+}
+
+// Trace logs a message at the trace level.
+func (l *Logger) Trace(msg string) {
+	l.log(traceLevel, nil, msg)
+}
+
+// Tracef logs fields and a message at the trace level.
+func (l *Logger) Tracef(f Fields, msg string) {
+	l.log(traceLevel, f, msg)
 }
 
 // Info logs a message at the info level.
@@ -154,18 +177,18 @@ func (l *Logger) log(lv level, f Fields, msg string) {
 		Metadata: Fields{
 			"level": string(lv),
 			"file":  l.fileInfo(),
-			"time":  fmt.Sprintf("%d", time.Now().UnixNano()),
+			"time":  time.Now().UTC().Format(time.RFC3339Nano),
 		},
 		Fields:  combinedFields,
 		Message: msg,
 	}
 
 	byt, _ := json.Marshal(e)
-	l.logger.Output(l.skip, string(byt))
+	l.logger.Output(l.callDepth, string(byt))
 }
 
 func (l *Logger) fileInfo() string {
-	_, file, line, ok := runtime.Caller(l.skip)
+	_, file, line, ok := runtime.Caller(l.callDepth)
 	if !ok {
 		file = "?"
 		line = 0
