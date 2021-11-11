@@ -11,7 +11,7 @@
 * Every log has metadata that includes:
     * UTC time in nano seconds
     * File name and line number
-    * Level - trace, info, warn, or error
+    * Level - trace, info, warn, error, panic, or fatal
 * Logs can contain permanent key-value fields that log with every message
 * Logs can contain key-value fields that log for just one message
 * Defaults to stdout (but is configurable with any `io.Writer`)
