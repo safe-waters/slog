@@ -122,6 +122,29 @@ func TestLog(t *testing.T) {
 			expF:    Fields{"test": "message", "local": "message"},
 			expKeys: []string{"_metadata", "message", "fields"},
 		},
+		{
+			name:    "panic",
+			msg:     "hello",
+			lv:      errorLevel,
+			expKeys: []string{"_metadata", "message"},
+		},
+		{
+			name:    "panic fields",
+			msg:     "hello",
+			lv:      panicLevel,
+			f:       Fields{"test": "message"},
+			expF:    Fields{"test": "message"},
+			expKeys: []string{"_metadata", "message", "fields"},
+		},
+		{
+			name:    "panic permanent fields",
+			msg:     "hello",
+			lv:      panicLevel,
+			f:       Fields{"test": "shadow", "local": "message"},
+			permF:   Fields{"test": "message"},
+			expF:    Fields{"test": "message", "local": "message"},
+			expKeys: []string{"_metadata", "message", "fields"},
+		},
 	}
 
 	for _, test := range tests {
@@ -353,6 +376,24 @@ func TestDefaultLogger(t *testing.T) {
 
 	Errorf(fields, msg)
 	expect(mw, errorLevel, fields)
+
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				expect(mw, panicLevel, nil)
+			}
+		}()
+		Panic(msg)
+	}()
+
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				expect(mw, panicLevel, fields)
+			}
+		}()
+		Panicf(fields, msg)
+	}()
 }
 
 func getLogFunc(
@@ -372,6 +413,15 @@ func getLogFunc(
 		return l.Warn
 	case "error":
 		return l.Error
+	case "panic":
+		return func(msg string) {
+			defer func() {
+				if r := recover(); r != nil {
+					return
+				}
+			}()
+			l.Panic(msg)
+		}
 	default:
 		t.Fatalf("invalid level '%s'", lv)
 	}
@@ -399,6 +449,15 @@ func getLogFuncf(
 		fn = l.Warnf
 	case "error":
 		fn = l.Errorf
+	case "panic":
+		fn = func(f Fields, msg string) {
+			defer func() {
+				if r := recover(); r != nil {
+					return
+				}
+			}()
+			l.Panicf(f, msg)
+		}
 	default:
 		t.Fatalf("invalid level '%s'", lv)
 		return nil

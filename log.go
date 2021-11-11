@@ -72,6 +72,8 @@ const (
 	infoLevel  level = "info"
 	warnLevel  level = "warn"
 	errorLevel level = "error"
+	panicLevel level = "panic"
+	fatalLevel level = "fatal"
 )
 
 var defaultLogger = New(DefaultCallDepth+1, os.Stdout, nil)
@@ -116,6 +118,26 @@ func Errorf(f Fields, msg string) {
 	defaultLogger.Errorf(f, msg)
 }
 
+// Panic calls the default Logger's Panic method.
+func Panic(msg string) {
+	defaultLogger.Panic(msg)
+}
+
+// Panicf calls the default Logger's Panicf method.
+func Panicf(f Fields, msg string) {
+	defaultLogger.Panicf(f, msg)
+}
+
+// Fatal calls the default Logger's Fatal method.
+func Fatal(msg string) {
+	defaultLogger.Fatal(msg)
+}
+
+// Fatalf calls the default Logger's Fatalf method.
+func Fatalf(f Fields, msg string) {
+	defaultLogger.Fatalf(f, msg)
+}
+
 // Trace logs a message at the trace level.
 func (l *Logger) Trace(msg string) {
 	l.log(traceLevel, nil, msg)
@@ -156,6 +178,28 @@ func (l *Logger) Errorf(f Fields, msg string) {
 	l.log(errorLevel, f, msg)
 }
 
+// Panic logs a message at the panic level and then panics with the message.
+func (l *Logger) Panic(msg string) {
+	l.log(panicLevel, nil, msg)
+}
+
+// Panicf logs fields and a message at the panic level and then panics with the fields and message.
+func (l *Logger) Panicf(f Fields, msg string) {
+	l.log(panicLevel, f, msg)
+}
+
+// Fatal logs a message at the fatal level followed by os.Exit(1).
+func (l *Logger) Fatal(msg string) {
+	l.log(fatalLevel, nil, msg)
+	os.Exit(1)
+}
+
+// Fatalf logs fields and a message at the fatal level followed by os.Exit(1).
+func (l *Logger) Fatalf(f Fields, msg string) {
+	l.log(fatalLevel, f, msg)
+	os.Exit(1)
+}
+
 type event struct {
 	Metadata Fields `json:"_metadata"`
 	Fields   Fields `json:"fields,omitempty"`
@@ -184,7 +228,12 @@ func (l *Logger) log(lv level, f Fields, msg string) {
 	}
 
 	byt, _ := json.Marshal(e)
-	l.logger.Output(l.callDepth, string(byt))
+	es := string(byt)
+	l.logger.Output(l.callDepth, es)
+
+	if lv == panicLevel {
+		panic(es)
+	}
 }
 
 func (l *Logger) fileInfo() string {
