@@ -152,7 +152,7 @@ func TestLog(t *testing.T) {
 		var (
 			test = test
 			mw   = &mockWriter{}
-			l    = New(DefaultCallDepth, mw, test.permF)
+			l    = New(mw, test.permF)
 			fn   func(msg interface{})
 		)
 
@@ -279,34 +279,11 @@ func TestLog(t *testing.T) {
 func TestDefaultStdOut(t *testing.T) {
 	t.Parallel()
 
-	l := New(DefaultCallDepth, nil, nil)
+	l := New(nil, nil)
 	w, ok := l.logger.Writer().(*os.File)
 	if !ok || w != os.Stdout {
 		t.Fatal(
 			"expected New's Writer to default to os.Stdout, but it did not",
-		)
-	}
-}
-
-func TestUnknownStack(t *testing.T) {
-	t.Parallel()
-
-	mw := &mockWriter{}
-	l := New(10000000, mw, nil)
-	l.Info("hello world")
-
-	var e event
-	if err := json.Unmarshal(mw.byt, &e); err != nil {
-		t.Fatal(err)
-	}
-
-	file := e.Metadata["file"]
-	expFile := "?:0"
-	if expFile != file {
-		t.Fatalf(
-			"expected file '%s', got '%s'",
-			expFile,
-			file,
 		)
 	}
 }

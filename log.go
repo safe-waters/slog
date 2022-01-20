@@ -8,26 +8,11 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
 )
-
-// DefaultCallDepth is the number of stack frames to ascend in
-// a goroutine and is used to determine the file name
-// and line number to log.
-//
-// The value is sensible - importing this package and using
-// it will produce the file name and line number where the
-// Logger was used.
-//
-// If you would like to create a wrapper around this package,
-// you will need to create the Logger with DefaultCallDepth+1
-// when calling New.
-//
-// For more information, see the documentation for the standard
-// library's runtime.Caller function.
-const DefaultCallDepth = 3
 
 // Logger is a wrapper around the standard library's log.Logger.
 // It produces structured log messages as JSON key-value string pairs
@@ -36,34 +21,40 @@ const DefaultCallDepth = 3
 //
 // It always logs the level, file name, line number, and timestamp
 // in unix nano seconds (UTC) as metadata.
+//
+// All code related to finding the file name and line number are
+// copied from https://github.com/sirupsen/logrus
 type Logger struct {
-	callDepth       int
-	logger          *log.Logger
-	permanentFields Fields
+	minimumCallerDepth int
+	maximumCallerDepth int
+	slogPackageName    string
+	logger             *log.Logger
+	permanentFields    Fields
 }
 
 // Fields holds key-value pairs for logs.
 type Fields map[string]interface{}
 
-// New returns a Logger that determines the file name and line number
-// from callDepth, where to write out, and fields to permanently set that will
-// appear with every log.
+// New returns a Logger that determines where to write out
+// and fields to permanently set that will appear with every log.
 //
 // If out is nil, it will default to os.Stdout.
 //
 // If permanentFields contains a key that is equal to
 // a key in another method such as Infof, the permanentFields
 // value will take priority.
-func New(callDepth int, out io.Writer, permanentFields Fields) *Logger {
+func New(out io.Writer, permanentFields Fields) *Logger {
 	if out == nil {
 		out = os.Stdout
 	}
-
-	return &Logger{
-		callDepth:       callDepth,
-		logger:          log.New(out, "", 0),
-		permanentFields: permanentFields,
+	l := &Logger{
+		minimumCallerDepth: 4,
+		maximumCallerDepth: 25,
+		logger:             log.New(out, "", 0),
+		permanentFields:    permanentFields,
 	}
+	l.slogPackageName = l.initSlogPackageName()
+	return l
 }
 
 type level string
@@ -77,7 +68,7 @@ const (
 	fatalLevel level = "fatal"
 )
 
-var defaultLogger = New(DefaultCallDepth+1, os.Stdout, nil)
+var defaultLogger = New(os.Stdout, nil)
 
 // Trace calls the default Logger's Trace method.
 func Trace(msg interface{}) {
@@ -209,55 +200,80 @@ type event struct {
 
 func (l *Logger) log(lv level, f Fields, msg interface{}) {
 	combinedFields := Fields{}
-
 	for k, v := range f {
 		if v == nil {
 			v = "nil"
 		}
 		combinedFields[k] = fmt.Sprint(v)
 	}
-
 	for k, v := range l.permanentFields {
 		if v == nil {
 			v = "nil"
 		}
 		combinedFields[k] = fmt.Sprint(v)
 	}
-
 	if msg == nil {
 		msg = "nil"
 	}
-
 	e := &event{
 		Metadata: Fields{
 			"level": string(lv),
-			"file":  l.fileInfo(),
+			"file":  l.fileNameAndLineNumber(),
 			"time":  time.Now().UTC().Format(time.RFC3339Nano),
 		},
 		Fields:  combinedFields,
 		Message: fmt.Sprint(msg),
 	}
-
 	byt, _ := json.Marshal(e)
 	es := string(byt)
-	l.logger.Output(l.callDepth, es)
-
+	l.logger.Print(es)
 	if lv == panicLevel {
 		panic(es)
 	}
 }
 
-func (l *Logger) fileInfo() string {
-	_, file, line, ok := runtime.Caller(l.callDepth)
-	if !ok {
-		file = "?"
-		line = 0
-	} else {
-		slash := strings.LastIndex(file, "/")
-		if slash >= 0 {
-			file = file[slash+1:]
+// Copied/Modified from https://github.com/sirupsen/logrus
+func (l *Logger) fileNameAndLineNumber() string {
+	pcs := make([]uintptr, l.maximumCallerDepth)
+	depth := runtime.Callers(l.minimumCallerDepth, pcs)
+	frames := runtime.CallersFrames(pcs[:depth])
+	var caller *runtime.Frame
+	for f, again := frames.Next(); again; f, again = frames.Next() {
+		pkg := l.getPackageName(f.Function)
+		if pkg != l.slogPackageName {
+			caller = &f
+			break
 		}
 	}
+	if caller == nil {
+		return "?:0"
+	}
+	return fmt.Sprintf("%s:%d", filepath.Base(caller.File), caller.Line)
+}
 
-	return fmt.Sprintf("%s:%d", file, line)
+// Copied/Modified from https://github.com/sirupsen/logrus
+func (l *Logger) initSlogPackageName() string {
+	pcs := make([]uintptr, l.maximumCallerDepth)
+	_ = runtime.Callers(0, pcs)
+	for i := 0; i < l.maximumCallerDepth; i++ {
+		funcName := runtime.FuncForPC(pcs[i]).Name()
+		if strings.Contains(funcName, "initSlogPackageName") {
+			return l.getPackageName(funcName)
+		}
+	}
+	return "github.com/safe-waters/slog"
+}
+
+// Copied/Modified from https://github.com/sirupsen/logrus
+func (l *Logger) getPackageName(f string) string {
+	for {
+		lastPeriod := strings.LastIndex(f, ".")
+		lastSlash := strings.LastIndex(f, "/")
+		if lastPeriod > lastSlash {
+			f = f[:lastPeriod]
+		} else {
+			break
+		}
+	}
+	return f
 }
