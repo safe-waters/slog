@@ -3,21 +3,25 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/safe-waters/slog.svg)](https://pkg.go.dev/github.com/safe-waters/slog)
 
 # What is this?
+
 `slog` is a structured logger that wraps the standard library's
 `log` package.
 
 # Features
-* Log each message as JSON
-* Every log has metadata that includes:
-    * UTC time in nano seconds
-    * File name and line number
-    * Level - trace, info, warn, error, panic, or fatal
-* Logs can contain permanent key-value fields that log with every message
-* Logs can contain key-value fields that log for just one message
-* Defaults to stdout (but is configurable with any `io.Writer`)
+
+- Log each message as JSON
+- Every log has metadata that includes:
+  - UTC time in nano seconds
+  - File name and line number
+  - Level - trace, info, warn, error, panic, or fatal
+- Logs can contain permanent key-value fields that log with every message
+- Logs can contain key-value fields that log for just one message
+- Defaults to stdout (but is configurable with any `io.Writer`)
 
 # How to use
+
 Without fields:
+
 ```go
 package main
 
@@ -28,6 +32,8 @@ func main() {
 	slog.Info("hello world")
 	slog.Warn("hello world")
 	slog.Error("hello world")
+	// slog.Panic will log and then panic
+	// slog.Fatal will log and then os.Exit(1)
 }
 
 // Output:
@@ -38,6 +44,7 @@ func main() {
 ```
 
 With fields:
+
 ```go
 package main
 
@@ -48,6 +55,8 @@ func main() {
 	slog.Infof(slog.Fields{"ip": "localhost"}, "hello world")
 	slog.Warnf(slog.Fields{"ip": "0.0.0.0"}, "hello world")
 	slog.Errorf(slog.Fields{"ip": "10.0.0.0"}, "hello world")
+	// slog.Panicf will log with fields and then panic
+	// slog.Fatalf will log with fields and then os.Exit(1)
 }
 
 // Output:
@@ -58,6 +67,7 @@ func main() {
 ```
 
 With permanent fields:
+
 ```go
 package main
 

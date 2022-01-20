@@ -2,6 +2,7 @@ package slog
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -152,7 +153,7 @@ func TestLog(t *testing.T) {
 			test = test
 			mw   = &mockWriter{}
 			l    = New(DefaultCallDepth, mw, test.permF)
-			fn   func(msg string)
+			fn   func(msg interface{})
 		)
 
 		if test.f == nil {
@@ -210,7 +211,7 @@ func TestLog(t *testing.T) {
 				)
 			}
 
-			file := e.Metadata["file"]
+			file := fmt.Sprint(e.Metadata["file"])
 			expFileName := "log_test.go"
 			if !strings.HasPrefix(file, expFileName) {
 				t.Fatalf(
@@ -236,7 +237,7 @@ func TestLog(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			gotTime, err := time.Parse(time.RFC3339, e.Metadata["time"])
+			gotTime, err := time.Parse(time.RFC3339, fmt.Sprint(e.Metadata["time"]))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -334,7 +335,7 @@ func TestDefaultLogger(t *testing.T) {
 			)
 		}
 
-		file := e.Metadata["file"]
+		file := fmt.Sprint(e.Metadata["file"])
 		expFileName := "log_test.go"
 		if !strings.HasPrefix(file, expFileName) {
 			t.Fatalf(
@@ -400,8 +401,8 @@ func getLogFunc(
 	t *testing.T,
 	l *Logger,
 	lv level,
-	msg string,
-) func(msg string) {
+	msg interface{},
+) func(msg interface{}) {
 	t.Helper()
 
 	switch lv {
@@ -414,7 +415,7 @@ func getLogFunc(
 	case "error":
 		return l.Error
 	case "panic":
-		return func(msg string) {
+		return func(msg interface{}) {
 			defer func() {
 				if r := recover(); r != nil {
 					return
@@ -434,11 +435,11 @@ func getLogFuncf(
 	l *Logger,
 	lv level,
 	f Fields,
-	msg string,
-) func(msg string) {
+	msg interface{},
+) func(msg interface{}) {
 	t.Helper()
 
-	var fn func(f Fields, msg string)
+	var fn func(f Fields, msg interface{})
 
 	switch lv {
 	case "trace":
@@ -450,7 +451,7 @@ func getLogFuncf(
 	case "error":
 		fn = l.Errorf
 	case "panic":
-		fn = func(f Fields, msg string) {
+		fn = func(f Fields, msg interface{}) {
 			defer func() {
 				if r := recover(); r != nil {
 					return
@@ -463,7 +464,7 @@ func getLogFuncf(
 		return nil
 	}
 
-	return func(msg string) {
+	return func(msg interface{}) {
 		fn(f, msg)
 	}
 }

@@ -31,7 +31,8 @@ const DefaultCallDepth = 3
 
 // Logger is a wrapper around the standard library's log.Logger.
 // It produces structured log messages as JSON key-value string pairs
-// and has four levels, "trace", "info", "warn", and "error".
+// and has the levels, "trace", "info", "warn", "error", "panic",
+// and "fatal".
 //
 // It always logs the level, file name, line number, and timestamp
 // in unix nano seconds (UTC) as metadata.
@@ -41,8 +42,8 @@ type Logger struct {
 	permanentFields Fields
 }
 
-// Fields holds key-value string pairs for logs.
-type Fields map[string]string
+// Fields holds key-value pairs for logs.
+type Fields map[string]interface{}
 
 // New returns a Logger that determines the file name and line number
 // from callDepth, where to write out, and fields to permanently set that will
@@ -79,142 +80,152 @@ const (
 var defaultLogger = New(DefaultCallDepth+1, os.Stdout, nil)
 
 // Trace calls the default Logger's Trace method.
-func Trace(msg string) {
+func Trace(msg interface{}) {
 	defaultLogger.Trace(msg)
 }
 
 // Tracef calls the default Logger's Tracef method.
-func Tracef(f Fields, msg string) {
+func Tracef(f Fields, msg interface{}) {
 	defaultLogger.Tracef(f, msg)
 }
 
 // Info calls the default Logger's Info method.
-func Info(msg string) {
+func Info(msg interface{}) {
 	defaultLogger.Info(msg)
 }
 
 // Infof calls the default Logger's Infof method.
-func Infof(f Fields, msg string) {
+func Infof(f Fields, msg interface{}) {
 	defaultLogger.Infof(f, msg)
 }
 
 // Warn calls the default Logger's Warn method.
-func Warn(msg string) {
+func Warn(msg interface{}) {
 	defaultLogger.Warn(msg)
 }
 
 // Warnf calls the default Logger's Warnf method.
-func Warnf(f Fields, msg string) {
+func Warnf(f Fields, msg interface{}) {
 	defaultLogger.Warnf(f, msg)
 }
 
 // Error calls the default Logger's Error method.
-func Error(msg string) {
+func Error(msg interface{}) {
 	defaultLogger.Error(msg)
 }
 
 // Errorf calls the default Logger's Errorf method.
-func Errorf(f Fields, msg string) {
+func Errorf(f Fields, msg interface{}) {
 	defaultLogger.Errorf(f, msg)
 }
 
 // Panic calls the default Logger's Panic method.
-func Panic(msg string) {
+func Panic(msg interface{}) {
 	defaultLogger.Panic(msg)
 }
 
 // Panicf calls the default Logger's Panicf method.
-func Panicf(f Fields, msg string) {
+func Panicf(f Fields, msg interface{}) {
 	defaultLogger.Panicf(f, msg)
 }
 
 // Fatal calls the default Logger's Fatal method.
-func Fatal(msg string) {
+func Fatal(msg interface{}) {
 	defaultLogger.Fatal(msg)
 }
 
 // Fatalf calls the default Logger's Fatalf method.
-func Fatalf(f Fields, msg string) {
+func Fatalf(f Fields, msg interface{}) {
 	defaultLogger.Fatalf(f, msg)
 }
 
 // Trace logs a message at the trace level.
-func (l *Logger) Trace(msg string) {
+func (l *Logger) Trace(msg interface{}) {
 	l.log(traceLevel, nil, msg)
 }
 
 // Tracef logs fields and a message at the trace level.
-func (l *Logger) Tracef(f Fields, msg string) {
+func (l *Logger) Tracef(f Fields, msg interface{}) {
 	l.log(traceLevel, f, msg)
 }
 
 // Info logs a message at the info level.
-func (l *Logger) Info(msg string) {
+func (l *Logger) Info(msg interface{}) {
 	l.log(infoLevel, nil, msg)
 }
 
 // Infof logs fields and a message at the info level.
-func (l *Logger) Infof(f Fields, msg string) {
+func (l *Logger) Infof(f Fields, msg interface{}) {
 	l.log(infoLevel, f, msg)
 }
 
 // Warn logs a message at the warn level.
-func (l *Logger) Warn(msg string) {
+func (l *Logger) Warn(msg interface{}) {
 	l.log(warnLevel, nil, msg)
 }
 
 // Warnf logs fields and a message at the warn level.
-func (l *Logger) Warnf(f Fields, msg string) {
+func (l *Logger) Warnf(f Fields, msg interface{}) {
 	l.log(warnLevel, f, msg)
 }
 
 // Error logs a message at the error level.
-func (l *Logger) Error(msg string) {
+func (l *Logger) Error(msg interface{}) {
 	l.log(errorLevel, nil, msg)
 }
 
 // Errorf logs fields and a message at the error level.
-func (l *Logger) Errorf(f Fields, msg string) {
+func (l *Logger) Errorf(f Fields, msg interface{}) {
 	l.log(errorLevel, f, msg)
 }
 
 // Panic logs a message at the panic level and then panics with the message.
-func (l *Logger) Panic(msg string) {
+func (l *Logger) Panic(msg interface{}) {
 	l.log(panicLevel, nil, msg)
 }
 
 // Panicf logs fields and a message at the panic level and then panics with the fields and message.
-func (l *Logger) Panicf(f Fields, msg string) {
+func (l *Logger) Panicf(f Fields, msg interface{}) {
 	l.log(panicLevel, f, msg)
 }
 
 // Fatal logs a message at the fatal level followed by os.Exit(1).
-func (l *Logger) Fatal(msg string) {
+func (l *Logger) Fatal(msg interface{}) {
 	l.log(fatalLevel, nil, msg)
 	os.Exit(1)
 }
 
 // Fatalf logs fields and a message at the fatal level followed by os.Exit(1).
-func (l *Logger) Fatalf(f Fields, msg string) {
+func (l *Logger) Fatalf(f Fields, msg interface{}) {
 	l.log(fatalLevel, f, msg)
 	os.Exit(1)
 }
 
 type event struct {
-	Metadata Fields `json:"_metadata"`
-	Fields   Fields `json:"fields,omitempty"`
-	Message  string `json:"message"`
+	Metadata Fields      `json:"_metadata"`
+	Fields   Fields      `json:"fields,omitempty"`
+	Message  interface{} `json:"message"`
 }
 
-func (l *Logger) log(lv level, f Fields, msg string) {
+func (l *Logger) log(lv level, f Fields, msg interface{}) {
 	combinedFields := Fields{}
 
 	for k, v := range f {
-		combinedFields[k] = v
+		if v == nil {
+			v = "nil"
+		}
+		combinedFields[k] = fmt.Sprint(v)
 	}
 
 	for k, v := range l.permanentFields {
-		combinedFields[k] = v
+		if v == nil {
+			v = "nil"
+		}
+		combinedFields[k] = fmt.Sprint(v)
+	}
+
+	if msg == nil {
+		msg = "nil"
 	}
 
 	e := &event{
@@ -224,7 +235,7 @@ func (l *Logger) log(lv level, f Fields, msg string) {
 			"time":  time.Now().UTC().Format(time.RFC3339Nano),
 		},
 		Fields:  combinedFields,
-		Message: msg,
+		Message: fmt.Sprint(msg),
 	}
 
 	byt, _ := json.Marshal(e)
